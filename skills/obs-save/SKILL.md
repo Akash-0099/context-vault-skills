@@ -203,14 +203,17 @@ Feature docs are the project's living knowledge: what exists and how it works **
 
 For each repo in `<repos>`:
 
-1. List `<vault>/<repo>/features/`. Pick the doc(s) for the feature/module this session touched (e.g. `DMB.md`, `KDS Recall.md`). A feature is a user-facing capability or module, not a single change: a new DMB button goes in `DMB.md`, not a new doc.
-2. **No matching doc?** Create `<vault>/<repo>/features/<Feature Name>.md` from the template below. Filenames must be unique across the vault (wiki-links resolve by name): check with `find "<vault>" -name "<Feature Name>.md"` and add ` (<repo>)` on a clash.
+0. **Segmented repo?** If the hub `<vault>/<repo>/<repo>.md` has a `## Segments` table (large monorepos like posistApp), pick the segment whose code paths contain the main files you changed (path first, domain second). A changed path not in the table → pick the closest segment by domain and add the path to that row. Feature docs then live in `features/<Segment>/`, and the segment note `features/<Segment>/<repo> - <Segment>.md` (create it from the segment template if missing) holds the Features table instead of the hub. Put area-wide learnings (architecture, conventions, traps that span features) in the segment note's `Overview` / `Gotchas`.
+1. List `<vault>/<repo>/features/` (recursively for segmented repos). Pick the doc(s) for the feature/module this session touched (e.g. `DMB.md`, `KDS Recall.md`). A feature is a user-facing capability or module, not a single change: a new DMB button goes in `DMB.md`, not a new doc.
+2. **No matching doc?** Create `<vault>/<repo>/features/[<Segment>/]<Feature Name>.md` from the template below. Filenames must be unique across the vault (wiki-links resolve by name): check with `find "<vault>" -name "<Feature Name>.md"` and add ` (<repo>)` on a clash.
 3. **Edit the doc in place** so it stays true: rewrite `What it is`, `How it works`, `Key files` and `Gotchas` to reflect the current state (replace outdated lines, don't append history there). Keep it short; no code blocks longer than a few lines.
 4. Append one row to `## Changelog`: `| YYYY-MM-DD | <what changed or was learned> | <branch or —> | [[<session-name>]] |`. Investigation-only sessions still get a row.
 5. Update frontmatter `updated:` to today, `status:` (`in-progress` = on a branch, `shipped` = merged to prod, `investigating` = no code yet) and `branches:`.
 6. For cross-repo work, link the sibling feature docs in each doc's header line.
 
-Then the hub `<vault>/<repo>/<repo>.md` (create it from the template if missing): add a row to its `## Features` table for any new doc, and refresh `Status` / `Updated` for the ones you touched.
+Then the index that lists features — the segment note for segmented repos, otherwise the hub `<vault>/<repo>/<repo>.md` (create it from the template if missing): add a row to its `## Features` table for any new doc, and refresh `Status` / `Updated` for the ones you touched.
+
+**New repo** (no hub yet): create the hub. If the repo is large (dozens of top-level modules), propose a `## Segments` table (`| Segment | Covers | Code paths |`, 8-15 domain segments built from the directory layout) and confirm it with the user before writing.
 
 Add every feature doc you touched to the session note's `features:` frontmatter.
 
@@ -265,6 +268,31 @@ updated: YYYY-MM-DD
 |---|---|---|---|
 | [[<Feature Name>]] | <one line> | <status> | YYYY-MM-DD |
 ```
+
+**Segment note template** (`features/<Segment>/<repo> - <Segment>.md`):
+
+```markdown
+---
+tags: [segment]
+project: "[[<repo>]]"
+updated: YYYY-MM-DD
+---
+# <repo> - <Segment>
+
+> [[<repo>]] segment · code: see the Segments table in the hub
+
+## Overview
+<how this area is built: main files, patterns, data flow>
+
+## Features
+| Feature | What | Status | Updated |
+|---|---|---|---|
+
+## Gotchas
+<traps that span features in this area>
+```
+
+In segmented repos, the feature doc header line is `> [[<repo>]] › [[<repo> - <Segment>]] · …`.
 
 ### Rules
 

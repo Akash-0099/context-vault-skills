@@ -51,11 +51,13 @@ and stop.
 
 ## Graph Traversal
 
-### Hop 0 — Hub
+### Hop 0 — Hub (and segment)
 Read `<vault>/<project>/<project>.md`. Its `## Features` table lists every feature doc with a one-line description.
 
+**Segmented repo** (hub has a `## Segments` table instead, e.g. posistApp): match the question to 1-2 segments by name, "Covers" and code paths, and read their segment notes `features/<Segment>/<project> - <Segment>.md`. The segment note has the area overview, area-wide gotchas and that segment's Features table. For a brand-new feature, the segment note is often all you need.
+
 ### Hop 1 — Feature docs (usually enough)
-Match the question against the Features table. Read 1-3 feature docs from `<project>/features/`. They hold the **current** state (what it is, how it works, key files, gotchas) plus a dated changelog. Most questions are answered here — if so, stop and answer.
+Match the question against the Features table. Read 1-3 feature docs from `<project>/features/` (or `features/<Segment>/`). They hold the **current** state (what it is, how it works, key files, gotchas) plus a dated changelog. Most questions are answered here — if so, stop and answer.
 
 ### Hop 2 — Session logs
 If you need the why, when, or a decision's context, pick 2-4 sessions from the feature doc's `## Changelog` and read them from `<project>/sessions/`. A changelog row may link a transcript instead of a session (no session log was saved); do not open it — mention it as a `/detective` lead.
@@ -78,7 +80,7 @@ Grep ONLY the hub and feature docs: `grep -ril "<keyword>" <vault>/<project>/<pr
 ## Harpoon: <topic>
 
 **Project:** <project>
-**Trail:** <project> hub → <feature doc(s)> → <session 1>, <session 2>, <artifact if any>
+**Trail:** <project> hub → <segment note, if segmented> → <feature doc(s)> → <session 1>, <session 2>, <artifact if any>
 
 ### Answer
 <synthesized answer drawing from the traversed files>

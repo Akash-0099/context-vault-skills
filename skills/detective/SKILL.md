@@ -55,7 +55,7 @@ and stop.
 
 ### Pass 1 — MAP (build the case board)
 
-1. Read the hub `<vault>/<project>/<project>.md`.
+1. Read the hub `<vault>/<project>/<project>.md`. If it has a `## Segments` table, also read every relevant segment note (`features/<Segment>/<project> - <Segment>.md`).
 2. Read ALL feature docs relevant to the topic (cast wide; include sibling docs in other repos linked from their header line). If the Features table doesn't match, `grep -ril "<keyword>" <vault>/*/features/`.
 3. List (do not read) `<project>/artifacts/`; note filenames matching the topic.
 4. Build the case board from the feature docs' `## Changelog` rows: every session log and every transcript-only row, plus candidate artifacts. Sort chronologically.
