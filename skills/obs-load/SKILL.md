@@ -26,19 +26,13 @@ v="${AGENT_CONTEXT_VAULT%/}"; echo "vault=${v:-UNSET}"; [ -d "$v" ] && echo "sta
 
 ## Step 1: Determine the project name
 
-Use the basename of the current working directory as `<project>`.
+Use the git repo of the current working directory (`basename $(git rev-parse --show-toplevel)`), falling back to the cwd basename.
 
 ## Step 2: Find the latest session file
 
-List `.md` files in:
+List `<vault>/<project>/sessions/*.md` and pick the newest by filename (names start with `YYYY-MM-DD_HH-MM-SS`).
 
-```
-<vault>/<project>/
-```
-
-(not recursing into `artifacts/`), sorted by modification time, newest first. Pick the most recently modified file that matches the session-log filename pattern `YYYY-MM-DD_HH-MM-SS.md`.
-
-If none exists, fall back to any non-overview `.md` in the project folder. If the folder itself does not exist, tell the user:
+If there are no sessions, or the folder does not exist, tell the user:
 
 > No Obsidian context found for this project. Use `/obs-save` to save your first session.
 
@@ -50,13 +44,7 @@ Read the session file. Parse its frontmatter.
 
 **If `artifacts:` is present in the frontmatter**, resolve each wiki-link to a path under `<project>/artifacts/` and read each artifact file. Cap at **5 artifacts** to keep context bounded — if there are more, read the 5 most recently modified and list the rest by name only.
 
-**Also read** the project overview file at the vault root if it exists:
-
-```
-<vault>/<project>.md
-```
-
-This contains accumulated architectural context.
+**Also read** the project hub `<vault>/<project>/<project>.md` (its Features table) and the feature docs listed in the session's `features:` frontmatter (max 3). Do not open the `transcript:` link.
 
 ## Step 4: Present the loaded context
 
@@ -77,7 +65,7 @@ Display to the user in this format:
 - **<artifact title>** (<type>): <brief description + key decisions>
 
 ### Project Context
-<If the project overview file exists, key points from it>
+<Features table from the hub, and 2-4 bullets per loaded feature doc: current state + open gotchas>
 ```
 
 After presenting, tell the user you are ready to continue with this context in mind.

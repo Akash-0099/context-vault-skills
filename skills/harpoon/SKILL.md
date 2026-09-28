@@ -5,7 +5,7 @@ description: Use when the user asks a question about past work, wants context on
 
 # Harpoon — Graph-Walking Context Retrieval
 
-Retrieve context from the Obsidian Agent Context Vault by **navigating the knowledge graph through MOCs**, not by scanning session files.
+Retrieve context from the Obsidian Agent Context Vault by **navigating the graph: project hub → feature docs → session logs**, not by scanning files.
 
 ## Invocation
 
@@ -16,7 +16,7 @@ Retrieve context from the Obsidian Agent Context Vault by **navigating the knowl
 
 ## The Rule
 
-**NEVER grep or glob session files directly. Always enter through a MOC.**
+**NEVER grep or glob session files directly. Always enter through the project hub. NEVER open `_transcripts/`** — they are full conversations, reserved for `/detective`.
 
 You are navigating a knowledge graph like a human in Obsidian — clicking hub nodes, following links, hopping between connected files. You are NOT a search engine.
 
@@ -38,10 +38,10 @@ v="${AGENT_CONTEXT_VAULT%/}"; echo "vault=${v:-UNSET}"; [ -d "$v" ] && echo "sta
 ## Determining Scope
 
 1. If the user specified `in <project>`, use that as `<project>`.
-2. If the user passed `--all`, set scope to all project folders — read each project's Master MOC at Hop 0 and pick the best-matching project before descending.
-3. Otherwise, use the basename of the current working directory as `<project>`.
+2. If the user passed `--all`, read every hub (`<vault>/*/<name>.md` where `<name>` is the folder name) at Hop 0 and pick the best-matching project(s).
+3. Otherwise use the git repo of the current working directory (`basename $(git rev-parse --show-toplevel)`), falling back to the cwd basename. If the cwd is not a repo (e.g. home dir), treat it like `--all`.
 
-Project folder lives at `<vault>/<project>/`.
+Project folder: `<vault>/<project>/` containing `<project>.md` (hub), `features/`, `sessions/`, `artifacts/`.
 
 If that folder does not exist, tell the user:
 
@@ -49,89 +49,28 @@ If that folder does not exist, tell the user:
 
 and stop.
 
-## Graph Traversal Algorithm
+## Graph Traversal
 
-```dot
-digraph harpoon {
-    "Hop 0: Read project Master MOC (or Hub)" [shape=box];
-    "Match topic to MOC names/tables" [shape=diamond];
-    "Hop 1: Read 1-3 matching Topic MOCs" [shape=box];
-    "Scan MOC tables for relevant sessions" [shape=box];
-    "Hop 2: Read 2-5 most relevant session files" [shape=box];
-    "Session cross-links look essential?" [shape=diamond];
-    "Hop 3: Read 1-2 cross-linked sessions or artifacts" [shape=box];
-    "Synthesize answer" [shape=doublecircle];
+### Hop 0 — Hub
+Read `<vault>/<project>/<project>.md`. Its `## Features` table lists every feature doc with a one-line description.
 
-    "Hop 0: Read project Master MOC (or Hub)" -> "Match topic to MOC names/tables";
-    "Match topic to MOC names/tables" -> "Hop 1: Read 1-3 matching Topic MOCs";
-    "Hop 1: Read 1-3 matching Topic MOCs" -> "Scan MOC tables for relevant sessions";
-    "Scan MOC tables for relevant sessions" -> "Hop 2: Read 2-5 most relevant session files";
-    "Hop 2: Read 2-5 most relevant session files" -> "Session cross-links look essential?";
-    "Session cross-links look essential?" -> "Hop 3: Read 1-2 cross-linked sessions or artifacts" [label="yes"];
-    "Session cross-links look essential?" -> "Synthesize answer" [label="no"];
-    "Hop 3: Read 1-2 cross-linked sessions or artifacts" -> "Synthesize answer";
-}
-```
+### Hop 1 — Feature docs (usually enough)
+Match the question against the Features table. Read 1-3 feature docs from `<project>/features/`. They hold the **current** state (what it is, how it works, key files, gotchas) plus a dated changelog. Most questions are answered here — if so, stop and answer.
 
-### Hop 0 — Entry Point
+### Hop 2 — Session logs
+If you need the why, when, or a decision's context, pick 2-4 sessions from the feature doc's `## Changelog` and read them from `<project>/sessions/`. A changelog row may link a transcript instead of a session (no session log was saved); do not open it — mention it as a `/detective` lead.
 
-Read the project's root hub, in this preference order:
+### Hop 3 — Cross-links (optional)
+Follow at most 2 essential links: a sibling feature doc in another repo (cross-repo features link each other in their header line), or an artifact in `<project>/artifacts/` listed in a session's `artifacts:` frontmatter.
 
-1. `<project>/00 - Master MOC.md`
-2. `<project>/00 - <project> Hub.md`
-3. `<project>/00 - Archive Hub.md`
-4. Any file in `<project>/` starting with `00 -`
-5. The root-level project stub `<project>.md` (which should link to the hub)
-
-If none exists, fall back to globbing `<project>/*MOC*.md` and reading up to 2 matches.
-
-### Hop 1 — Find the Right MOCs
-
-The Master MOC lists topic MOCs in a table. Match the user's topic against those MOC names and descriptions. Read 1-3 matching Topic MOCs.
-
-**Generic matching heuristics (the MOCs themselves may not exist in every project):**
-
-| Topic keywords | Look for MOCs named like... |
-|---|---|
-| bug, error, crash, regression | `Bug Tracker MOC`, `Bugs MOC` |
-| migration, upgrade, port | `* Migration MOC` |
-| architecture, pattern, design | `Architecture Patterns MOC`, `Design System *` |
-| database, query, schema | `Database * MOC`, `MongoDB MOC`, `MSSQL MOC` |
-| aws, s3, sqs, lambda | `AWS Services MOC` |
-| api, routing, middleware | `Express * MOC`, `API MOC` |
-| timeline, history, chronological | `Timeline MOC` |
-| module, file, subsystem | `Project Module MOC` |
-| billing, contracts, licensing | `Billing * MOC`, `Contracts MOC` |
-| reports, scheduling, jobs | `Report * MOC`, `Cron MOC` |
-
-If no obvious topic MOC matches, use `Timeline MOC` (chronological) or read the top 1-2 MOCs listed in the Master MOC.
-
-### Hop 2 — Read Relevant Sessions
-
-MOC tables link sessions with one-line descriptions. Pick the 2-5 sessions most relevant to the query. Read them.
-
-### Hop 3 — Follow Cross-Links (Optional)
-
-If a session's `## Related` / `## Artifacts` sections or inline `[[wiki links]]` point to another session, **artifact**, or concept stub that looks essential, follow it. Max 2 additional reads.
-
-**Artifacts are in `<project>/artifacts/` and are especially valuable** — they contain the original plan/design/spec that drove the work, often more detailed than the session summary.
-
-### Fallback — Topic Not in Any MOC
-
-If Hop 1 finds no matching MOC, grep ONLY the MOC files (not session files, not artifacts):
-
-```
-Grep pattern across <project>/*MOC*.md
-```
-
-If still nothing, widen to root-level concept stubs (e.g. `MSSQL.md`, `SQS.md`). If still nothing, tell the user the topic is not in the vault for this project.
+### Fallback — topic not in the Features table
+Grep ONLY the hub and feature docs: `grep -ril "<keyword>" <vault>/<project>/<project>.md <vault>/<project>/features/`. Still nothing → try other projects' `features/` folders. Still nothing → say the topic isn't in the vault and suggest `/detective <topic>` (it can search transcripts).
 
 ## Constraints
 
-- **Max 10 file reads total** per query
-- **Track files read** — never re-read a file
-- **MOC-first always** — session files and artifacts are only read when a MOC or session points to them
-- **No sequential scanning** — never glob all `.md` files and read through them
+- **Max 10 file reads total** per query; never re-read a file
+- Hub first, feature docs second, sessions only via a changelog link
+- **Never read `_transcripts/`** — if exact implementation detail is needed and the session log lacks it, say so and suggest `/detective`
 
 ## Output Format
 
@@ -139,7 +78,7 @@ If still nothing, widen to root-level concept stubs (e.g. `MSSQL.md`, `SQS.md`).
 ## Harpoon: <topic>
 
 **Project:** <project>
-**Trail:** Master MOC → <MOC name(s)> → <session 1>, <session 2>, <artifact if any>
+**Trail:** <project> hub → <feature doc(s)> → <session 1>, <session 2>, <artifact if any>
 
 ### Answer
 <synthesized answer drawing from the traversed files>
@@ -160,9 +99,8 @@ If still nothing, widen to root-level concept stubs (e.g. `MSSQL.md`, `SQS.md`).
 
 | If you're doing this... | Stop and... |
 |------------------------|-------------|
-| Grepping session files for keywords | Read the Master MOC first |
-| Globbing all .md files | Enter through a MOC |
+| Grepping session files or transcripts | Read the hub and feature docs first |
+| Opening anything in `_transcripts/` | That's `/detective`'s job — suggest it |
+| Reading sessions before feature docs | The feature doc likely already answers it |
 | Reading more than 10 files | You have enough context, synthesize |
-| Reading a session not linked from a MOC | Go back to the MOC and find the right link |
-| Skipping Hop 0 | Always start at the project's Master MOC / Hub |
-| Assuming hardcoded MOC names | The MOCs vary per project — read the Master MOC table to discover them |
+| Skipping Hop 0 | Always start at `<project>/<project>.md` |

@@ -68,7 +68,7 @@ project: "[[projectFolderName]]"
 - Project Module MOC (organized by subsystem)
 
 ### Tier 3: Session Logs
-- Named `YYYY-MM-DD_HH-MM-SS.md`, written by `/obs-save`
+- Named `YYYY-MM-DD_HH-MM-SS_<topic-slug>.md`, written by `/obs-save` (the slug says what the session was about and changed)
 - Link back via `project: "[[projectFolderName]]"` and `related:` field
 - Sections: Summary, Key Changes, Decisions & Context, Related
 
@@ -87,7 +87,7 @@ related:
 
 ### Artifacts (`<project>/artifacts/`)
 - Copies of plans, designs, specs, brainstorms, and review reports produced during a session
-- Named `YYYY-MM-DD_<slug>.md`, written by `/obs-save`
+- Named `YYYY-MM-DD_<type>_<artifact-slug>.md`, written by `/obs-save`
 - Frontmatter carries `type:`, `source_path:`, and a `session:` link back to the session log
 
 ---
@@ -120,7 +120,7 @@ When the user asks to consolidate or update MOCs:
 - **Never modify session logs** — they are immutable records
 - **MOCs are living documents** — update them freely
 - **Every session must appear in at least one MOC table**
-- **Use the existing table format**: `| [[YYYY-MM-DD_HH-MM-SS]] | What was done | Scale/scope |`
+- **Use the existing table format**: `| [[YYYY-MM-DD_HH-MM-SS_<topic-slug>]] | What was done | Scale/scope |`
 - **Update the `date:` field** in MOC frontmatter to the date of the latest update
 - **Keep table rows chronological** within each phase/section
 - **Cross-link MOCs** when sessions touch multiple domains

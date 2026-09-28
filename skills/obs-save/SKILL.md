@@ -24,9 +24,33 @@ v="${AGENT_CONTEXT_VAULT%/}"; echo "vault=${v:-UNSET}"; [ -d "$v" ] && echo "sta
 - `status=missing` → stop and tell the user that the vault directory does not exist at the printed path.
 - `status=ok` → use the printed path as `<vault>` in every path below. Use it exactly as printed (case-sensitive). Do not search for the vault anywhere else.
 
-## Step 1: Determine the project name
+## Step 1: Determine the project(s)
 
-Use the basename of the current working directory as `<project>`.
+Projects are git repos, not the working directory. List every repo this session touched: the git root (`git -C <dir> rev-parse --show-toplevel`) of each file you edited or created, plus the repo(s) an investigation was about if you only read code. Ignore the vault itself.
+
+- `<project>` = the primary repo: most changes, or the one the session centred on. The session log goes there.
+- `<repos>` = all touched repos, including `<project>`. Each gets its feature docs updated in Step 6.
+- No repo involved at all → `<project>` = basename of the current working directory.
+
+## Step 1b: Name the session
+
+A future agent picks which note to open from the filename alone, so the name must say what the session was about and what changed. Build:
+
+```
+<session-name> = YYYY-MM-DD_HH-MM-SS_<topic-slug>
+```
+
+`<topic-slug>` rules:
+- 3–8 lowercase words, kebab-case, max 60 chars, only `a-z0-9-`
+- Lead with the feature/module/component touched, then what happened: `fix`, `add`, `investigate`, `plan`, `refactor`, `review`, `migrate`, …
+- Include a ticket ID or branch name when there is one
+- Name the specifics, not the category. Banned words: `session`, `work`, `update`, `changes`, `misc`, `stuff`, `various`, `general`
+- Several unrelated topics → name the biggest two (`kds-reprint-fix-and-socket-timeout-investigation`)
+
+Good: `kds-duplicate-ticket-reprint-fix`, `pos-gst-rounding-root-cause-investigation`, `obs-save-descriptive-filenames`
+Bad: `bug-fix`, `kds-changes`, `session-notes`, `misc-updates`
+
+Also write `<session-title>`: the same topic as a short human-readable title (e.g. "KDS duplicate ticket reprint fix").
 
 ## Step 2: Identify session artifacts
 
@@ -66,12 +90,13 @@ Copy these to the vault? (y / n / select: 1,3)
 Wait for the user's answer. On `y` or a selection, copy each confirmed artifact to:
 
 ```
-<vault>/<project>/artifacts/YYYY-MM-DD_<slug>.md
+<vault>/<project>/artifacts/YYYY-MM-DD_<type>_<artifact-slug>.md
 ```
 
 Where:
 - `YYYY-MM-DD` is today's date
-- `<slug>` is the original filename without extension, lowercased, with non-alphanumerics replaced by `-`
+- `<type>` is `plan`, `design`, `brainstorm`, `spec` or `review`
+- `<artifact-slug>` names what the artifact covers, following the `<topic-slug>` rules from Step 1b (e.g. `2026-09-25_plan_kds-socket-reconnect-retry.md`, not `2026-09-25_plan.md`)
 
 **Artifact file format:** prepend this frontmatter, then the **full original content unchanged**:
 
@@ -83,7 +108,7 @@ date: YYYY-MM-DD
 project: "[[<project>]]"
 type: <plan | design | brainstorm | spec | review>
 source_path: <absolute path to the original file in the project repo>
-session: "[[YYYY-MM-DD_HH-MM-SS]]"
+session: "[[<session-name>]]"
 ---
 
 <original file content verbatim>
@@ -98,10 +123,20 @@ Remember the list of vault-relative paths of each copied artifact for Step 5.
 Create the session log at:
 
 ```
-<vault>/<project>/YYYY-MM-DD_HH-MM-SS.md
+<vault>/<project>/sessions/<session-name>.md
 ```
 
-Use the current date and time (24-hour format) for the filename. Create the project directory if it does not exist.
+Use `<session-name>` from Step 1b (current date and 24-hour time). Create the directories if they do not exist.
+
+## Step 4b: Save the transcript
+
+Run:
+
+```bash
+python3 ~/.claude/context-vault-skills/scripts/transcript.py "${CLAUDE_SESSION_ID}" --project <project>
+```
+
+It renders this session's full conversation (redacted, tool output truncated) to `<vault>/_transcripts/<project>/…md` and prints the path. `<transcript-name>` = that file's basename without `.md`. A SessionEnd hook re-renders the same file when the session ends, so it ends up complete. If the script fails, omit the `transcript:` field and mention it in Step 8.
 
 ## Step 5: Format the session note
 
@@ -113,6 +148,9 @@ aliases: []
 tags: [devlog, context, claude-session]
 date: YYYY-MM-DD
 project: "[[<project>]]"
+transcript: "[[<transcript-name>]]"
+features:
+  - "[[<feature-doc-1>]]"
 artifacts:
   - "[[<artifact-wiki-link-1>]]"
   - "[[<artifact-wiki-link-2>]]"
@@ -121,7 +159,7 @@ related:
   - "[[<related-note-2>]]"
 ---
 
-# Session — <Month DD, YYYY HH:MM AM/PM>
+# <session-title> — <Month DD, YYYY HH:MM AM/PM>
 
 **Project:** `<full working directory path>`
 
@@ -159,32 +197,95 @@ related:
 - If the session was trivial, still save a note but say so in the summary
 - Do NOT include full code blocks or long outputs — summarize instead
 
-## Step 6: Index the session in a MOC
+## Step 6: Update the feature docs
 
-Every session log must appear in at least one topic MOC. Add the row at save time so no backlog forms.
+Feature docs are the project's living knowledge: what exists and how it works **now**. Every session must land in at least one feature doc changelog, in every repo in `<repos>`.
 
-1. Look for `<vault>/<project>/00 - Master MOC.md` (or any `00 - *.md` hub file).
-2. **No Master MOC?** Skip this step. In Step 7, note that the project has no MOCs yet.
-3. Read the Master MOC. Pick the topic MOC(s) whose scope matches this session. Read them.
-4. Append one row to the session table of each matching MOC, in that table's existing format:
+For each repo in `<repos>`:
 
-   `| [[YYYY-MM-DD_HH-MM-SS]] | <one-line what-was-done> | <small / medium / large> |`
+1. List `<vault>/<repo>/features/`. Pick the doc(s) for the feature/module this session touched (e.g. `DMB.md`, `KDS Recall.md`). A feature is a user-facing capability or module, not a single change: a new DMB button goes in `DMB.md`, not a new doc.
+2. **No matching doc?** Create `<vault>/<repo>/features/<Feature Name>.md` from the template below. Filenames must be unique across the vault (wiki-links resolve by name): check with `find "<vault>" -name "<Feature Name>.md"` and add ` (<repo>)` on a clash.
+3. **Edit the doc in place** so it stays true: rewrite `What it is`, `How it works`, `Key files` and `Gotchas` to reflect the current state (replace outdated lines, don't append history there). Keep it short; no code blocks longer than a few lines.
+4. Append one row to `## Changelog`: `| YYYY-MM-DD | <what changed or was learned> | <branch or —> | [[<session-name>]] |`. Investigation-only sessions still get a row.
+5. Update frontmatter `updated:` to today, `status:` (`in-progress` = on a branch, `shipped` = merged to prod, `investigating` = no code yet) and `branches:`.
+6. For cross-repo work, link the sibling feature docs in each doc's header line.
 
-   Place the row in chronological position (normally last). If a table uses a different column layout, match that layout.
-5. **No topic MOC matches?** Append the row to `Unsorted MOC.md` instead. Create it if missing: standard topic-MOC frontmatter, `> Back to [[00 - Master MOC]]` at the top, a `| Session | What | Scale |` table. Add an `Unsorted` row to the Master MOC's table.
-6. Update each edited MOC's frontmatter `date:` to today. If the Master MOC shows a total session count, add 1.
+Then the hub `<vault>/<repo>/<repo>.md` (create it from the template if missing): add a row to its `## Features` table for any new doc, and refresh `Status` / `Updated` for the ones you touched.
+
+Add every feature doc you touched to the session note's `features:` frontmatter.
+
+**Feature doc template:**
+
+```markdown
+---
+tags: [feature]
+project: "[[<repo>]]"
+status: in-progress
+branches: [<branch>]
+updated: YYYY-MM-DD
+---
+# <Feature Name>
+
+> [[<repo>]] · other parts: [[<sibling doc>]] (<other repo>)
+
+## What it is
+<1-3 lines: what the feature does for the user>
+
+## How it works
+<bullets: flow, data shape, settings, APIs — current truth>
+
+## Key files
+- `<path>` — <role>
+
+## Gotchas
+- <traps, config quirks, open decisions>
+
+## Changelog
+| Date | Change | Branch | Session |
+|---|---|---|---|
+| YYYY-MM-DD | <change> | <branch> | [[<session-name>]] |
+```
+
+**Hub template** (`<vault>/<repo>/<repo>.md`; named after the repo so every `[[<repo>]]` link lands on it):
+
+```markdown
+---
+tags: [hub, project]
+aliases: []
+repo: <absolute repo path>
+prod_branch: <branch>
+updated: YYYY-MM-DD
+---
+# <repo>
+
+<one line: what this repo is>
+
+## Features
+| Feature | What | Status | Updated |
+|---|---|---|---|
+| [[<Feature Name>]] | <one line> | <status> | YYYY-MM-DD |
+```
 
 ### Rules
 
-- Append rows and update dates/counts only. Do not reorganize, rewrite, or re-sort MOC content during a save — that is consolidation work, done separately in the vault.
-- Never modify session logs.
+- Never modify session logs or transcripts after writing them.
+- Feature docs and hubs are living documents: edit freely, but keep changelog rows (append only).
 
-## Step 7: Confirm and compact
+## Step 7: Add to the daily note
+
+Append one line to `<vault>/Daily/YYYY-MM-DD.md` (today). Create it if missing with frontmatter `tags: [daily]`, `date: YYYY-MM-DD` and heading `# YYYY-MM-DD`.
+
+```
+- **<project>** — [[<session-name>]] — <one-line what was done> ([[<feature-doc>]], …)
+```
+
+## Step 8: Confirm and compact
 
 Report to the user:
 - The session file path
 - A one-line summary of what was saved
 - The count and vault paths of any artifacts copied
-- The MOC row(s) added in Step 6, or a note that the project has no MOCs yet
+- The transcript path
+- The feature docs created or updated (per repo) and the daily note line
 
 Then run `/clear` to compact the context.

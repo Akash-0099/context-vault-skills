@@ -23,9 +23,9 @@ The skills expect this layout. One folder per project, named after the project d
 ├── <project-name>/
 │   ├── 00 - Master MOC.md             # tier 1: single entry point, links every topic MOC
 │   ├── <Topic> MOC.md                 # tier 2: one per domain (Bugs, Database, Migration, ...)
-│   ├── YYYY-MM-DD_HH-MM-SS.md         # tier 3: session logs (immutable)
+│   ├── YYYY-MM-DD_HH-MM-SS_<topic>.md # tier 3: session logs (immutable)
 │   └── artifacts/
-│       └── YYYY-MM-DD_<slug>.md       # plans, designs, specs copied from sessions
+│       └── YYYY-MM-DD_<type>_<slug>.md # plans, designs, specs copied from sessions
 └── <project-name>.md                  # optional root-level project overview
 ```
 
@@ -43,7 +43,7 @@ The skills expect this layout. One folder per project, named after the project d
 Symlinks the skills into `~/.claude/skills/` so you invoke them as `/obs-save`, `/harpoon`, etc., and writes the vault path into `~/.claude/settings.json`.
 
 ```bash
-git clone https://github.com/chestimudasir/context-vault-skills.git
+git clone https://github.com/Akash-0099/context-vault-skills.git
 cd context-vault-skills
 ./install.sh "/absolute/path/to/your/vault"
 ```
@@ -55,7 +55,7 @@ Flags: `--replace` (back up and replace existing skill directories of the same n
 Inside Claude Code:
 
 ```
-/plugin marketplace add chestimudasir/context-vault-skills
+/plugin marketplace add Akash-0099/context-vault-skills
 /plugin install context-vault@context-vault-skills
 ```
 
